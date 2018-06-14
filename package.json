@@ -1,8 +1,8 @@
 {
-  "name": "mongodb-queue",
-  "version": "3.1.0",
-  "description": "Message queues which uses MongoDB.",
-  "main": "mongodb-queue.js",
+  "name": "mongodb-promise-queue",
+  "version": "1.0.0",
+  "description": "Message queues which uses MongoDB and promise, based on mongodb-queue.",
+  "main": "mongodb-promise-queue.js",
   "scripts": {
     "test": "set -e; for FILE in test/*.js; do node $FILE; done"
   },
@@ -12,23 +12,31 @@
     "mongodb": "^2.0.48",
     "async": "^1.5.0"
   },
-  "homepage": "https://github.com/chilts/mongodb-queue",
+  "homepage": "https://github.com/omninnov/mongodb-promise-queue",
   "repository": {
     "type": "git",
-    "url": "git://github.com/chilts/mongodb-queue.git"
+    "url": "git://github.com/omninnov/mongodb-promise-queue.git"
   },
   "bugs": {
-    "url": "http://github.com/chilts/mongodb-queue/issues",
-    "mail": "andychilton@gmail.com"
+    "url": "http://github.com/omninnov/mongodb-promise-queue/issues",
+    "mail": "fred@omninnov.com"
   },
   "author": {
-    "name": "Andrew Chilton",
-    "email": "andychilton@gmail.com",
-    "url": "http://chilts.org/"
+    "name": "Frédéric Mascaro",
+    "email": "fred@omninnov.com",
+    "url": "http://www.omninnov.com/"
   },
+  "contributors": [
+    {
+      "name": "Andrew Chilton",
+      "email": "andychilton@gmail.com",
+      "url": "http://chilts.org/"
+    }
+  ],
   "license": "MIT",
   "keywords": [
     "mongodb",
-    "queue"
+    "queue",
+    "promise"
   ]
 }
