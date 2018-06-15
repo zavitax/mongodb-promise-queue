@@ -1,6 +1,6 @@
 {
   "name": "mongodb-promise-queue",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Message queues which uses MongoDB and promise, based on mongodb-queue.",
   "main": "mongodb-promise-queue.js",
   "scripts": {

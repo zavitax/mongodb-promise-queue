@@ -113,7 +113,7 @@ Queue.prototype.add = function(payload, opts = {}) {
 // ----------------------------------------------------------------------
 
 Queue.prototype.get = function(opts = {}) {
-    let visibility = opts.visibility || self.visibility
+    let visibility = opts.visibility || this.visibility
 
     let query = {
         deleted : null,
