@@ -1,29 +1,32 @@
-# mongodb-queue #
+# mongodb-promise-queue #
 
-[![Build Status](https://travis-ci.org/chilts/mongodb-queue.png)](https://travis-ci.org/chilts/mongodb-queue) [![NPM](https://nodei.co/npm/mongodb-queue.png?mini=true)](https://nodei.co/npm/mongodb-queue/)
+[![NPM](https://nodei.co/npm/mongodb-promise-queue.png?mini=true)](https://nodei.co/npm/mongodb-promise-queue/)
 
-A really light-weight way to create queues with a nice API if you're already
+A really light-weight way to create queues with a nice API and *promise* if you're already
 using MongoDB.
+
+Based of the code of [mongodb-queue](https://github.com/chilts/mongodb-queue), a great project with nodejs callback, and not promise.
 
 ## Synopsis ##
 
 Create a connection to your MongoDB database, and use it to create a queue object:
 
 ```js
-var mongodb = require('mongodb')
-var mongoDbQueue = require('mongodb-queue')
+let mongodb = require('mongodb')
+let mongoDbQueue = require('mongodb-promise-queue')
 
-var con = 'mongodb://localhost:27017/test'
+let con = 'mongodb://localhost:27017/test'
 
 mongodb.MongoClient.connect(con, function(err, db) {
-    var queue = mongoDbQueue(db, 'my-queue')
+    let queue = mongoDbQueue(db, 'my-queue')
 })
 ```
 
 Add a message to a queue:
 
 ```js
-queue.add('Hello, World!', function(err, id) {
+queue.add('Hello, World!')
+.then(id => {
     // Message with payload 'Hello, World!' added.
     // 'id' is returned, useful for logging.
 })
@@ -32,18 +35,20 @@ queue.add('Hello, World!', function(err, id) {
 Get a message from the queue:
 
 ```js
-queue.get(function(err, msg) {
-    console.log('msg.id=' + msg.id)
-    console.log('msg.ack=' + msg.ack)
-    console.log('msg.payload=' + msg.payload) // 'Hello, World!'
-    console.log('msg.tries=' + msg.tries)
+queue.get()
+.then(message => {
+    console.log('message.id     =' + message.id)
+    console.log('message.ack    =' + message.ack)
+    console.log('message.payload=' + message.payload) // 'Hello, World!'
+    console.log('message.tries  =' + message.tries)
 })
 ```
 
 Ping a message to keep it's visibility open for long-running tasks
 
 ```js
-queue.ping(msg.ack, function(err, id) {
+queue.ping(msg.ack)
+.then(id => {
     // Visibility window now increased for this message id.
     // 'id' is returned, useful for logging.
 })
@@ -52,7 +57,8 @@ queue.ping(msg.ack, function(err, id) {
 Ack a message (and remove it from the queue):
 
 ```js
-queue.ack(msg.ack, function(err, id) {
+queue.ack(msg.ack)
+.then(id => {
     // This msg removed from queue for this ack.
     // The 'id' of the message is returned, useful for logging.
 })
@@ -63,7 +69,8 @@ you can go and analyse them if you want. However, you can call the following fun
 to remove processed messages:
 
 ```js
-queue.clean(function(err) {
+queue.clean()
+.then(() => {
     // All processed (ie. acked) messages have been deleted
 })
 ```
@@ -74,7 +81,8 @@ one-off script) you don't need to call it in your program. Of course, check
 the changelock to see if you need to update them with new releases:
 
 ```js
-queue.createIndexes(function(err, indexName) {
+queue.createIndexes()
+.then(indexName => {
     // The indexes needed have been added to MongoDB.
 })
 ```
@@ -86,12 +94,12 @@ and a set of opts. The MongoDB collection used is the same name as the name
 passed in:
 
 ```
-var mongoDbQueue = require('mongodb-queue')
+let mongoDbQueue = require('mongodb-queue')
 
 // an instance of a queue
-var queue1 = mongoDbQueue(db, 'a-queue')
+let queue1 = mongoDbQueue(db, 'a-queue')
 // another queue which uses the same collection as above
-var queue2 = mongoDbQueue(db, 'a-queue')
+let queue2 = mongoDbQueue(db, 'a-queue')
 ```
 
 Using `queue1` and `queue2` here won't interfere with each other and will play along nicely, but that's not
@@ -103,7 +111,7 @@ it's not something you should do.
 To pass in options for the queue:
 
 ```
-var resizeQueue = mongoDbQueue(db, 'resize-queue', { visibility : 30, delay : 15 })
+let resizeQueue = mongoDbQueue(db, 'resize-queue', { visibility : 30, delay : 15 })
 ```
 
 This example shows a queue with a message visibility of 30s and a delay to each message of 15s.
@@ -118,8 +126,8 @@ Each queue you create will be it's own collection.
 e.g.
 
 ```
-var resizeImageQueue = mongoDbQueue(db, 'resize-image-queue')
-var notifyOwnerQueue = mongoDbQueue(db, 'notify-owner-queue')
+let resizeImageQueue = mongoDbQueue(db, 'resize-image-queue')
+let notifyOwnerQueue = mongoDbQueue(db, 'notify-owner-queue')
 ```
 
 This will create two collections in MongoDB called `resize-image-queue` and `notify-owner-queue`.
@@ -136,7 +144,7 @@ You may set this visibility window on a per queue basis. For example, to set the
 visibility to 15 seconds:
 
 ```
-var queue = mongoDbQueue(db, 'queue', { visibility : 15 })
+let queue = mongoDbQueue(db, 'queue', { visibility : 15 })
 ```
 
 All messages in this queue now have a visibility window of 15s, instead of the
@@ -154,7 +162,7 @@ retrieval 10s after being added.
 To delay all messages by 10 seconds, try this:
 
 ```
-var queue = mongoDbQueue(db, 'queue', { delay : 10 })
+let queue = mongoDbQueue(db, 'queue', { delay : 10 })
 ```
 
 This is now the default for every message added to the queue.
@@ -169,8 +177,8 @@ automatically see problem messages.
 Pass in a queue (that you created) onto which these messages will be pushed:
 
 ```js
-var deadQueue = mongoDbQueue(db, 'dead-queue')
-var queue = mongoDbQueue(db, 'queue', { deadQueue : deadQueue })
+let deadQueue = mongoDbQueue(db, 'dead-queue')
+let queue = mongoDbQueue(db, 'queue', { deadQueue : deadQueue })
 ```
 
 If you pop a message off the `queue` over `maxRetries` times and have still not acked it,
@@ -231,7 +239,8 @@ when it was on the original queue (except with the number of tries set to 5).
 You can add a string to the queue:
 
 ```js
-queue.add('Hello, World!', function(err, id) {
+queue.add('Hello, World!')
+.then(id => {
     // Message with payload 'Hello, World!' added.
     // 'id' is returned, useful for logging.
 })
@@ -240,7 +249,8 @@ queue.add('Hello, World!', function(err, id) {
 Or add an object of your choosing:
 
 ```js
-queue.add({ err: 'E_BORKED', msg: 'Broken' }, function(err, id) {
+queue.add({ err: 'E_BORKED', msg: 'Broken' })
+.then(id => {
     // Message with payload { err: 'E_BORKED', msg: 'Broken' } added.
     // 'id' is returned, useful for logging.
 })
@@ -249,7 +259,8 @@ queue.add({ err: 'E_BORKED', msg: 'Broken' }, function(err, id) {
 Or add multiple messages:
 
 ```js
-queue.add(['msg1', 'msg2', 'msg3'], function(err, ids) {
+queue.add(['msg1', 'msg2', 'msg3'])
+.then(ids => {
     // Messages with payloads 'msg1', 'msg2' & 'msg3' added.
     // All 'id's are returned as an array, useful for logging.
 })
@@ -258,7 +269,8 @@ queue.add(['msg1', 'msg2', 'msg3'], function(err, ids) {
 You can delay individual messages from being visible by passing the `delay` option:
 
 ```js
-queue.add('Later', { delay: 120 }, function(err, id) {
+queue.add('Later', { delay: 120 })
+.then(id => {
     // Message with payload 'Later' added.
     // 'id' is returned, useful for logging.
     // This message won't be available for getting for 2 mins.
@@ -270,7 +282,8 @@ queue.add('Later', { delay: 120 }, function(err, id) {
 Retrieve a message from the queue:
 
 ```js
-queue.get(function(err, msg) {
+queue.get()
+.then(message => {
     // You can now process the message
     // IMPORTANT: The callback will not wait for an message if the queue is empty.  The message will be undefined if the queue is empty.
 })
@@ -279,7 +292,8 @@ queue.get(function(err, msg) {
 You can choose the visibility of an individual retrieved message by passing the `visibility` option:
 
 ```js
-queue.get({ visibility: 10 }, function(err, msg) {
+queue.get({ visibility: 10 })
+.then(message => {
     // You can now process the message for 10s before it goes back into the queue if not ack'd instead of the duration that is set on the queue in general
 })
 ```
@@ -301,8 +315,9 @@ After you have received an item from a queue and processed it, you can delete it
 by calling `.ack()` with the unique `ackId` returned:
 
 ```js
-queue.get(function(err, msg) {
-    queue.ack(msg.ack, function(err, id) {
+queue.get()
+.then(message => {
+    return queue.ack(message.ack).then(id => {
         // this message has now been removed from the queue
     })
 })
@@ -315,8 +330,9 @@ to process it, you can `.ping()` the message to tell the queue that you are
 still alive and continuing to process the message:
 
 ```js
-queue.get(function(err, msg) {
-    queue.ping(msg.ack, function(err, id) {
+queue.get()
+.then(message => {
+    return queue.ping(message.ack).then(id => {
         // this message has had it's visibility window extended
     })
 })
@@ -325,8 +341,9 @@ queue.get(function(err, msg) {
 You can also choose the visibility time that gets added by the ping operation by passing the `visibility` option:
 
 ```js
-queue.get(function(err, msg) {
-    queue.ping(msg.ack, { visibility: 10 }, function(err, id) {
+queue.get()
+.then(message => {
+    return queue.ping(msg.ack, { visibility: 10 }).then(id => {
         // this message has had it's visibility window extended by 10s instead of the visibilty set on the queue in general
     })
 })
@@ -338,7 +355,8 @@ Returns the total number of messages that has ever been in the queue, including
 all current messages:
 
 ```js
-queue.total(function(err, count) {
+queue.total()
+.then(count => {
     console.log('This queue has seen %d messages', count)
 })
 ```
@@ -348,7 +366,8 @@ queue.total(function(err, count) {
 Returns the total number of messages that are waiting in the queue.
 
 ```js
-queue.size(function(err, count) {
+queue.size()
+.then(count => {
     console.log('This queue has %d current messages', count)
 })
 ```
@@ -359,7 +378,8 @@ Returns the total number of messages that are currently in flight. ie. that
 have been received but not yet acked:
 
 ```js
-queue.inFlight(function(err, count) {
+queue.inFlight()
+.then(count => {
     console.log('A total of %d messages are currently being processed', count)
 })
 ```
@@ -370,7 +390,8 @@ Returns the total number of messages that have been processed correctly in the
 queue:
 
 ```js
-queue.done(function(err, count) {
+queue.done()
+.then(count => {
     console.log('This queue has processed %d messages', count)
 })
 ```
@@ -382,7 +403,8 @@ if you wish, but delete them if you no longer need them. Perhaps do this using `
 for a regular cleaning:
 
 ```js
-queue.clean(function(err) {
+queue.clean()
+.then(() => {
     console.log('The processed messages have been deleted from the queue')
 })
 ```
@@ -418,103 +440,21 @@ is to install a later version of the driver. I have tried this with v1.4.9 and i
 
 ## Releases ##
 
-Yay! We made it to v1.0. This means that development may slow down but to be honest, I have pretty
-much all of the functionality I want in this thing done. Thanks to everyone for feedback, reports
-and pull requests.
+*See the previous release of the original project: https://github.com/chilts/mongodb-queue*
 
-### 2.1.0 (2016-04-21) ###
+### 1.0.0 (2018-06-16) ###
 
-* [FIX] Fix to indexes (thanks https://github.com/ifightcrime) when lots of messages
-
-### 2.0.0 (2014-11-12) ###
-
-* [NEW] Update MongoDB API from v1 to v2 (thanks https://github.com/hanwencheng)
-
-### 1.0.1 (2015-05-25) ###
-
-* [NEW] Test changes only
-
-### 1.0.0 (2014-10-30) ###
-
-* [NEW] Ability to specify a visibility window when getting a message (thanks https://github.com/Gertt)
-
-### 0.9.1 (2014-08-28) ###
-
-* [NEW] Added .clean() method to remove old (processed) messages
-* [NEW] Add 'delay' option to queue.add() so individual messages can be delayed separately
-* [TEST] Test individual 'delay' option for each message
-
-### 0.7.0 (2014-03-24) ###
-
-* [FIX] Fix .ping() so only visible/non-deleted messages can be pinged
-* [FIX] Fix .ack() so only visible/non-deleted messages can be pinged
-* [TEST] Add test to make sure messages can't be acked twice
-* [TEST] Add test to make sure an acked message can't be pinged
-* [INTERNAL] Slight function name changes, nicer date routines
-
-### 0.6.0 (2014-03-22) ###
-
-* [NEW] The msg.id is now returned on successful Queue.ping() and Queue.ack() calls
-* [NEW] Call quueue.ensureIndexes(callback) to create them
-* [CHANGE] When a message is acked, 'deleted' is now set to the current time (not true)
-* [CHANGE] The queue is now created synchronously
-
-### 0.5.0 (2014-03-21) ###
-
-* [NEW] Now adds two indexes onto the MongoDB collection used for the message
-* [CHANGE] The queue is now created by calling the async exported function
-* [DOC] Update to show how the queues are now created
-
-### 0.4.0 (2014-03-20) ###
-
-* [NEW] Ability to ping retrieved messages a. la. 'still alive' and 'extend visibility'
-* [CHANGE] Removed ability to have different queues in the same collection
-* [CHANGE] All queues are now stored in their own collection
-* [CHANGE] When acking a message, only need ack (no longer need id)
-* [TEST] Added test for pinged messages
-* [DOC] Update to specify each queue will create it's own MongoDB collection
-* [DOC] Added docs for option `delay`
-* [DOC] Added synopsis for Queue.ping()
-* [DOC] Removed use of msg.id when calling Queue.ack()
-
-### 0.3.1 (2014-03-19) ###
-
-* [DOC] Added documentation for the `delay` option
-
-### 0.3.0 (2014-03-19) ###
-
-* [NEW] Return the message id when added to a queue
-* [NEW] Ability to set a default delay on all messages in a queue
-* [FIX] Make sure old messages (outside of visibility window) aren't deleted when acked
-* [FIX] Internal: Fix `queueName`
-* [TEST] Added test for multiple messages
-* [TEST] Added test for delayed messages
-
-### 0.2.1 (2014-03-19) ###
-
-* [FIX] Fix when getting messages off an empty queue
-* [NEW] More Tests
-
-### 0.2.0 (2014-03-18) ###
-
-* [NEW] messages now return number of tries (times they have been fetched)
-
-### 0.1.0 (2014-03-18) ###
-
-* [NEW] add messages to queues
-* [NEW] fetch messages from queues
-* [NEW] ack messages on queues
-* [NEW] set up multiple queues
-* [NEW] set your own MongoDB Collection name
-* [NEW] set a visibility timeout on a queue
+* [NEW] Migration to promise.
 
 ## Author ##
 
-Written by [Andrew Chilton](http://chilts.org/) -
+Original project written by [Andrew Chilton](http://chilts.org/) -
 [Twitter](https://twitter.com/andychilton).
+
+Current project migrated by [Frédéric Mascaro](http://www.izi-done.com/)
 
 ## License ##
 
-MIT - http://chilts.mit-license.org/2014/
+MIT - https://github.com/omninnov/mongodb-promise-queue/blob/master/LICENSE
 
 (Ends)
