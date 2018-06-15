@@ -1,14 +1,14 @@
 /**
  *
- * mongodb-queue.js - Use your existing MongoDB as a local queue.
+ * mongodb-promise-queue.js - Use your existing MongoDB as a local queue with promise.
  *
  * Copyright (c) 2014 Andrew Chilton
- * - http://chilts.org/
- * - andychilton@gmail.com
+ * Copyright (c) 2018 Frédéric Mascaro
  *
- * License: http://chilts.mit-license.org/2014/
+ * License: MIT
  *
  **/
+
 
 let crypto = require('crypto')
 
@@ -35,7 +35,7 @@ function nowPlusSecs(secs) {
 
 // ----------------------------------------------------------------------
 
-module.exports = function(mongoDbClient, name, opts) {
+module.exports = function(mongoDbClient, name, opts = {}) {
     return new Queue(mongoDbClient, name, opts)
 }
 
@@ -44,7 +44,7 @@ module.exports = function(mongoDbClient, name, opts) {
 
 
 // the Queue object itself
-function Queue(mongoDbClient, name, opts) {
+function Queue(mongoDbClient, name, opts = {}) {
     if ( !mongoDbClient ) {
         throw new Error("mongodb-queue: provide a mongodb.MongoClient")
     }
@@ -66,18 +66,7 @@ function Queue(mongoDbClient, name, opts) {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.createIndexes = function(callback) {
 Queue.prototype.createIndexes = function() {
-    // let self = this
-
-    // self.col.createIndex({ deleted : 1, visible : 1 }, function(err, indexname) {
-    //     if (err) return callback(err)
-    //     self.col.createIndex({ ack : 1 }, { unique : true, sparse : true }, function(err) {
-    //         if (err) return callback(err)
-    //         callback(null, indexname)
-    //     })
-    // })
-
     return this.col.createIndex({ deleted : 1, visible : 1 })
     .then(indexname => {
         return this.col.createIndex({ ack : 1 }, { unique : true, sparse : true })
@@ -87,15 +76,8 @@ Queue.prototype.createIndexes = function() {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.add = function(payload, opts, callback) {
-Queue.prototype.add = function(payload, opts) {
-    // let self = this
-    // if ( !callback ) {
-    //     callback = opts
-    //     opts = {}
-    // }
-    
-    let delay = opts.delay || self.delay
+Queue.prototype.add = function(payload, opts = {}) {
+    let delay = opts.delay || this.delay
     let visible = delay ? nowPlusSecs(delay) : now()
 
     let messages = []
@@ -120,12 +102,6 @@ Queue.prototype.add = function(payload, opts) {
         })
     }
 
-    // self.col.insertMany(messages, function(err, results) {
-    //     if (err) return callback(err)
-    //     if (payload instanceof Array) return callback(null, '' + results.insertedIds)
-    //     callback(null, '' + results.ops[0]._id)
-    // })
-
     return this.col.insertMany(messages)
     .then(results => {
         return payload instanceof Array ?
@@ -136,14 +112,7 @@ Queue.prototype.add = function(payload, opts) {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.get = function(opts, callback) {
-Queue.prototype.get = function(opts) {
-    // let self = this
-    // if ( !callback ) {
-    //     callback = opts
-    //     opts = {}
-    // }
-
+Queue.prototype.get = function(opts = {}) {
     let visibility = opts.visibility || self.visibility
 
     let query = {
@@ -181,7 +150,7 @@ Queue.prototype.get = function(opts) {
         // if we have a deadQueue, then check the tries, else don't
         if ( this.deadQueue ) {
             // check the tries
-            if ( msg.tries > self.maxRetries ) {
+            if ( msg.tries > this.maxRetries ) {
                 // So:
                 // 1) add this message to the deadQueue
                 // 2) ack this message from the regular queue
@@ -198,54 +167,12 @@ Queue.prototype.get = function(opts) {
 
         return msg
     })
-
-    // self.col.findOneAndUpdate(query, update, { sort: sort, returnOriginal : false }, function(err, result) {
-    //     if (err) return callback(err)
-    //     let msg = result.value
-    //     if (!msg) return callback()
-
-    //     // convert to an external representation
-    //     msg = {
-    //         // convert '_id' to an 'id' string
-    //         id      : '' + msg._id,
-    //         ack     : msg.ack,
-    //         payload : msg.payload,
-    //         tries   : msg.tries,
-    //     }
-    //     // if we have a deadQueue, then check the tries, else don't
-    //     if ( self.deadQueue ) {
-    //         // check the tries
-    //         if ( msg.tries > self.maxRetries ) {
-    //             // So:
-    //             // 1) add this message to the deadQueue
-    //             // 2) ack this message from the regular queue
-    //             // 3) call ourself to return a new message (if exists)
-    //             self.deadQueue.add(msg, function(err) {
-    //                 if (err) return callback(err)
-    //                 self.ack(msg.ack, function(err) {
-    //                     if (err) return callback(err)
-    //                     self.get(callback)
-    //                 })
-    //             })
-    //             return
-    //         }
-    //     }
-
-    //     callback(null, msg)
-    // })
 }
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.ping = function(ack, opts, callback) {
-Queue.prototype.ping = function(ack, opts) {
-    // let self = this
-    // if ( !callback ) {
-    //     callback = opts
-    //     opts = {}
-    // }
-
-    let visibility = opts.visibility || self.visibility
+Queue.prototype.ping = function(ack, opts = {}) {
+    let visibility = opts.visibility || this.visibility
     
     let query = {
         ack     : ack,
@@ -263,28 +190,15 @@ Queue.prototype.ping = function(ack, opts) {
     .then(msg => {
         if ( !msg.value ) {
             throw new Error("Queue.ping(): Unidentified ack  : " + ack)
-            // return callback(new Error("Queue.ping(): Unidentified ack  : " + ack))
         }
 
         return '' + msg.value._id
-        // callback(null, '' + msg.value._id)
     })
-
-    // self.col.findOneAndUpdate(query, update, { returnOriginal : false }, function(err, msg, blah) {
-    //     if (err) return callback(err)
-    //     if ( !msg.value ) {
-    //         return callback(new Error("Queue.ping(): Unidentified ack  : " + ack))
-    //     }
-    //     callback(null, '' + msg.value._id)
-    // })
 }
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.ack = function(ack, callback) {
 Queue.prototype.ack = function(ack) {
-    // let self = this
-
     let query = {
         ack     : ack,
         visible : { $gt : now() },
@@ -305,22 +219,11 @@ Queue.prototype.ack = function(ack) {
 
         return '' + msg.value._id
     })
-
-    // self.col.findOneAndUpdate(query, update, { returnOriginal : false }, function(err, msg, blah) {
-    //     if (err) return callback(err)
-    //     if ( !msg.value ) {
-    //         return callback(new Error("Queue.ack(): Unidentified ack : " + ack))
-    //     }
-    //     callback(null, '' + msg.value._id)
-    // })
 }
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.clean = function(callback) {
 Queue.prototype.clean = function() {
-    // let self = this
-
     let query = {
         deleted : { $exists : true },
     }
@@ -330,19 +233,13 @@ Queue.prototype.clean = function() {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.total = function(callback) {
 Queue.prototype.total = function() {
-    // let self = this
-
     return this.col.count()
 }
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.size = function(callback) {
 Queue.prototype.size = function() {
-    // let self = this
-
     let query = {
         deleted : null,
         visible : { $lte : now() },
@@ -353,10 +250,7 @@ Queue.prototype.size = function() {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.inFlight = function(callback) {
 Queue.prototype.inFlight = function() {
-    // let self = this
-
     let query = {
         ack     : { $exists : true },
         visible : { $gt : now() },
@@ -368,10 +262,7 @@ Queue.prototype.inFlight = function() {
 
 // ----------------------------------------------------------------------
 
-// Queue.prototype.done = function(callback) {
 Queue.prototype.done = function() {
-    // let self = this
-
     let query = {
         deleted : { $exists : true },
     }
