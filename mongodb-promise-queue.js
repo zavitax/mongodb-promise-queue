@@ -10,15 +10,14 @@
  **/
 
 
-let crypto = require('crypto')
-
+const uuid = require('uuid').v1;
 
 // ========================================================================================
 
 
 // some helper functions
 function id() {
-    return crypto.randomBytes(16).toString('hex')
+    return uuid();
 }
 
 // ----------------------------------------------------------------------
@@ -110,7 +109,7 @@ Queue.prototype.add = function(payload, opts = {}) {
         })
     }
 
-    return this.col.insertMany(messages, { session: session })
+    return this.col.insertMany(messages, { session : session })
     .then(results => {
         return payload instanceof Array ?
             results.insertedIds :
@@ -165,10 +164,10 @@ Queue.prototype.get = function(opts = {}) {
                 // 3) call ourself to return a new message (if exists)
                 return this.deadQueue.add(msg)
                 .then(() => {
-                    this.ack(msg.ack)
+                    return this.ack(msg.ack)
                 })
                 .then(() => {
-                    this.get(opts)
+                    return this.get(opts)
                 })
             }
         }
@@ -181,6 +180,7 @@ Queue.prototype.get = function(opts = {}) {
 
 Queue.prototype.ping = function(ack, opts = {}) {
     let visibility = opts.visibility || this.visibility
+    const session = opts.session || null;
     
     let query = {
         ack     : ack,
@@ -194,7 +194,7 @@ Queue.prototype.ping = function(ack, opts = {}) {
         }
     }
 
-    return this.col.findOneAndUpdate(query, update, { returnOriginal : false })
+    return this.col.findOneAndUpdate(query, update, { returnOriginal : false, session : session })
     .then(msg => {
         if ( !msg.value ) {
             throw new Error("Queue.ping(): Unidentified ack  : " + ack)
@@ -206,7 +206,9 @@ Queue.prototype.ping = function(ack, opts = {}) {
 
 // ----------------------------------------------------------------------
 
-Queue.prototype.ack = function(ack) {
+Queue.prototype.ack = function(ack, opts = {}) {
+    const session = (opts || {}).session || null;
+
     let query = {
         ack     : ack,
         visible : { $gt : now() },
@@ -219,7 +221,7 @@ Queue.prototype.ack = function(ack) {
         }
     }
 
-    return this.col.findOneAndUpdate(query, update, { returnOriginal : false })
+    return this.col.findOneAndUpdate(query, update, { returnOriginal : false, session : session })
     .then(msg => {
         if ( !msg.value ) {
             throw new Error("Queue.ack(): Unidentified ack : " + ack)
