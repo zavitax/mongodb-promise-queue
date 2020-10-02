@@ -64,10 +64,26 @@ queue.ping(msg.ack)
 })
 ```
 
+```js
+queue.ping(msg.ack, { session: mongoDbSession })
+.then(id => {
+    // Visibility window now increased for this message id.
+    // 'id' is returned, useful for logging.
+})
+```
+
 Ack a message (and remove it from the queue):
 
 ```js
 queue.ack(msg.ack)
+.then(id => {
+    // This msg removed from queue for this ack.
+    // The 'id' of the message is returned, useful for logging.
+})
+```
+
+```js
+queue.ack(msg.ack, { session: mongoDbSession })
 .then(id => {
     // This msg removed from queue for this ack.
     // The 'id' of the message is returned, useful for logging.
